@@ -1,0 +1,14 @@
+# Dipendenze e moduli
+node_modules/
+
+# Build output del frontend (viene rigenerato dal deploy)
+client/dist/
+
+# File di database temporanei (il .sqlite principale viene mantenuto)
+server/data/database.sqlite-shm
+server/data/database.sqlite-wal
+
+# File di sistema
+.DS_Store
+Thumbs.db
+*.log

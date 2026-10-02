@@ -1,0 +1,15 @@
+{
+  "name": "gestione-calendario-corsi",
+  "version": "1.0.0",
+  "description": "WebApp Gestione Calendario Corsi - Deploy Online",
+  "scripts": {
+    "install:server": "cd server && npm install",
+    "install:client": "cd client && npm install",
+    "build:client": "cd client && npm run build",
+    "postinstall": "npm run install:server && npm run install:client && npm run build:client",
+    "start": "cd server && node --experimental-sqlite node_modules/.bin/tsx src/index.ts"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}
