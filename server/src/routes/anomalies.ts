@@ -17,7 +17,7 @@ interface Anomaly {
 }
 
 // GET /api/admin/anomalies?period_id=
-router.get('/', (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
     const { period_id } = req.query;
     if (!period_id) {
@@ -29,7 +29,7 @@ router.get('/', (req: Request, res: Response) => {
     const periodId = parseInt(period_id as string);
 
     // 1. Get all courses for the period
-    const courses = db.prepare(`
+    const courses = await db.all(`
       SELECT c.*,
         COALESCE((SELECT SUM(l.hours) FROM lessons l
           JOIN assignments a ON l.assignment_id = a.id
@@ -44,13 +44,13 @@ router.get('/', (req: Request, res: Response) => {
       FROM courses c
       WHERE c.period_id = ?
       ORDER BY c.code
-    `).all(periodId) as any[];
+    `, [periodId]) as any[];
 
     for (const course of courses) {
       const isNonContractCourse = ((course.total_hours_aula || 0) + (course.total_hours_pw || 0)) === 0;
 
       // 2. Get units for this course
-      const units = db.prepare(`
+      const units = await db.all(`
         SELECT u.*,
           COALESCE((SELECT SUM(l.hours) FROM lessons l
             JOIN assignments a ON l.assignment_id = a.id
@@ -58,7 +58,7 @@ router.get('/', (req: Request, res: Response) => {
         FROM units u
         WHERE u.course_id = ?
         ORDER BY u.name
-      `).all(course.id) as any[];
+      `, [course.id]) as any[];
 
       // Check: Corso senza UF
       if (units.length === 0) {
@@ -140,12 +140,12 @@ router.get('/', (req: Request, res: Response) => {
                                  unitNameUpper.includes('E-LEARN');
 
         // 3. Get assignments for this unit
-        const assignments = db.prepare(`
+        const assignments = await db.all(`
           SELECT a.*, t.name as teacher_name
           FROM assignments a
           JOIN teachers t ON a.teacher_id = t.id
           WHERE a.unit_id = ?
-        `).all(unit.id) as any[];
+        `, [unit.id]) as any[];
 
         // Check: UF senza docente
         if (assignments.length === 0) {
@@ -180,9 +180,10 @@ router.get('/', (req: Request, res: Response) => {
 
         // Check: Sforamento/Mancanza ore per singolo docente
         for (const assignment of assignments) {
-          const usedResult = db.prepare(
-            'SELECT COALESCE(SUM(hours), 0) as used FROM lessons WHERE assignment_id = ?'
-          ).get(assignment.id) as any;
+          const usedResult = await db.get(
+            'SELECT COALESCE(SUM(hours), 0) as used FROM lessons WHERE assignment_id = ?',
+            [assignment.id]
+          ) as any;
           const usedHours = usedResult.used || 0;
 
           if (usedHours > assignment.total_hours) {

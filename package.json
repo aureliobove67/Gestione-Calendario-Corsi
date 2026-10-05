@@ -7,9 +7,9 @@
     "install:client": "cd client && npm install",
     "build:client": "cd client && npm run build",
     "postinstall": "npm run install:server && npm run install:client && npm run build:client",
-    "start": "cd server && node --experimental-sqlite node_modules/.bin/tsx src/index.ts"
+    "start": "cd server && npm run start"
   },
   "engines": {
-    "node": ">=22.5.0"
+    "node": ">=20.0.0"
   }
 }

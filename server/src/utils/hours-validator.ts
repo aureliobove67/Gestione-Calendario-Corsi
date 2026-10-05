@@ -15,29 +15,30 @@ export interface HoursValidation {
   remainingHours: number;
 }
 
-export function getAssignmentHoursStatus(assignmentId: number): HoursStatus {
-  const assignment = db.prepare('SELECT total_hours FROM assignments WHERE id = ?').get(assignmentId) as any;
+export async function getAssignmentHoursStatus(assignmentId: number): Promise<HoursStatus> {
+  const assignment = await db.get('SELECT total_hours FROM assignments WHERE id = ?', [assignmentId]) as any;
   if (!assignment) {
     throw new Error(`Assignment ${assignmentId} not found`);
   }
 
-  const result = db.prepare(
-    'SELECT COALESCE(SUM(hours), 0) as used FROM lessons WHERE assignment_id = ?'
-  ).get(assignmentId) as any;
+  const result = await db.get(
+    'SELECT COALESCE(SUM(hours), 0) as used FROM lessons WHERE assignment_id = ?',
+    [assignmentId]
+  ) as any;
 
   return {
     totalHours: assignment.total_hours,
-    usedHours: result.used,
-    remainingHours: assignment.total_hours - result.used
+    usedHours: result?.used || 0,
+    remainingHours: assignment.total_hours - (result?.used || 0)
   };
 }
 
-export function validateNewLessonHours(
+export async function validateNewLessonHours(
   assignmentId: number,
   newHours: number,
   excludeLessonId?: number
-): HoursValidation {
-  const assignment = db.prepare('SELECT total_hours FROM assignments WHERE id = ?').get(assignmentId) as any;
+): Promise<HoursValidation> {
+  const assignment = await db.get('SELECT total_hours FROM assignments WHERE id = ?', [assignmentId]) as any;
   if (!assignment) {
     throw new Error(`Assignment ${assignmentId} not found`);
   }
@@ -50,8 +51,8 @@ export function validateNewLessonHours(
     params.push(excludeLessonId);
   }
 
-  const result = db.prepare(query).get(...params) as any;
-  const usedHours = result.used;
+  const result = await db.get(query, params) as any;
+  const usedHours = result?.used || 0;
   const totalHours = assignment.total_hours;
   const remainingHours = totalHours - usedHours;
 

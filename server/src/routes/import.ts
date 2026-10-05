@@ -7,7 +7,7 @@ import { auditLog } from '../middleware/audit';
 const router = Router();
 
 // POST /api/admin/import-excel
-router.post('/', (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
     const excelPath = path.join(__dirname, '..', '..', '..', 'Calendario 1° anno 25225.xlsx');
     const adminId = req.user!.id;
@@ -22,42 +22,45 @@ router.post('/', (req: Request, res: Response) => {
     }
 
     // Create or get period
-    let period = db.prepare("SELECT id FROM academic_periods WHERE name = ?").get('1° Anno 25225') as any;
+    let period = await db.get("SELECT id FROM academic_periods WHERE name = ?", ['1° Anno 25225']) as any;
     let periodId: number;
 
     if (period) {
       periodId = period.id;
     } else {
-      const result = db.prepare(
+      const result = await db.run(
         `INSERT INTO academic_periods (name, description, start_date, end_date, is_active, created_by)
-         VALUES (?, ?, ?, ?, 1, ?)`
-      ).run('1° Anno 25225', 'Primo anno corso 25225 - importato da Excel', '2025-01-01', '2025-12-31', adminId);
+         VALUES (?, ?, ?, ?, 1, ?)`,
+        ['1° Anno 25225', 'Primo anno corso 25225 - importato da Excel', '2025-01-01', '2025-12-31', adminId]
+      );
       periodId = Number(result.lastInsertRowid);
-      auditLog(adminId, 'academic_period', periodId, 'CREATE', null, { name: '1° Anno 25225' });
+      await auditLog(adminId, 'academic_period', periodId, 'CREATE', null, { name: '1° Anno 25225' });
     }
 
     const teacherMap = new Map<string, number>();
     const importResults: any[] = [];
 
-    const importTransaction = (db as any).transaction(() => {
+    await db.transaction(async () => {
       for (const mod of modules) {
-        const courseResult = db.prepare(
+        const courseResult = await db.run(
           `INSERT INTO courses (period_id, code, name, total_hours_aula, total_hours_webinar, total_hours_fad, total_hours_pw, total_hours_stage, created_by)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        ).run(
-          periodId, mod.code, mod.name,
-          mod.totalHoursAula, mod.totalHoursWebinar, mod.totalHoursFad,
-          mod.totalHoursPw, mod.totalHoursStage, adminId
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            periodId, mod.code, mod.name,
+            mod.totalHoursAula, mod.totalHoursWebinar, mod.totalHoursFad,
+            mod.totalHoursPw, mod.totalHoursStage, adminId
+          ]
         );
         const courseId = Number(courseResult.lastInsertRowid);
-        auditLog(adminId, 'course', courseId, 'CREATE', null, { code: mod.code, name: mod.name, source: 'excel-import' });
+        await auditLog(adminId, 'course', courseId, 'CREATE', null, { code: mod.code, name: mod.name, source: 'excel-import' });
 
         const unitsImported: any[] = [];
 
         for (const unit of mod.units) {
-          const unitResult = db.prepare(
-            'INSERT INTO units (course_id, name, contracted_hours, created_by) VALUES (?, ?, ?, ?)'
-          ).run(courseId, unit.name, unit.contractedHours, adminId);
+          const unitResult = await db.run(
+            'INSERT INTO units (course_id, name, contracted_hours, created_by) VALUES (?, ?, ?, ?)',
+            [courseId, unit.name, unit.contractedHours, adminId]
+          );
           const unitId = Number(unitResult.lastInsertRowid);
 
           const teacherKey = unit.teacherName.toLowerCase().trim();
@@ -66,24 +69,27 @@ router.post('/', (req: Request, res: Response) => {
           if (teacherMap.has(teacherKey)) {
             teacherId = teacherMap.get(teacherKey)!;
           } else {
-            const existing = db.prepare(
-              'SELECT id FROM teachers WHERE LOWER(name) = ? AND period_id = ?'
-            ).get(teacherKey, periodId) as any;
+            const existing = await db.get(
+              'SELECT id FROM teachers WHERE LOWER(name) = ? AND period_id = ?',
+              [teacherKey, periodId]
+            ) as any;
 
             if (existing) {
               teacherId = existing.id;
             } else {
-              const teacherResult = db.prepare(
-                'INSERT INTO teachers (period_id, name, created_by) VALUES (?, ?, ?)'
-              ).run(periodId, unit.teacherName, adminId);
+              const teacherResult = await db.run(
+                'INSERT INTO teachers (period_id, name, created_by) VALUES (?, ?, ?)',
+                [periodId, unit.teacherName, adminId]
+              );
               teacherId = Number(teacherResult.lastInsertRowid);
             }
             teacherMap.set(teacherKey, teacherId);
           }
 
-          const assignmentResult = db.prepare(
-            'INSERT INTO assignments (unit_id, teacher_id, total_hours, created_by) VALUES (?, ?, ?, ?)'
-          ).run(unitId, teacherId, unit.contractedHours, adminId);
+          await db.run(
+            'INSERT INTO assignments (unit_id, teacher_id, total_hours, created_by) VALUES (?, ?, ?, ?)',
+            [unitId, teacherId, unit.contractedHours, adminId]
+          );
 
           unitsImported.push({
             name: unit.name,
@@ -99,8 +105,6 @@ router.post('/', (req: Request, res: Response) => {
         });
       }
     });
-
-    importTransaction();
 
     res.json({
       message: 'Excel import completed successfully',

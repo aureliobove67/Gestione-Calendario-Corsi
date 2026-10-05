@@ -62,13 +62,13 @@ function getItalianHoliday(dateStr: string): { isHoliday: boolean; name?: string
   return { isHoliday: false };
 }
 
-function validateLessonOverlapsAndHolidays(
+async function validateLessonOverlapsAndHolidays(
   assignmentId: number,
   dateStr: string,
   startTime: string,
   endTime: string,
   excludeLessonId?: number
-): { valid: boolean; error?: string } {
+): Promise<{ valid: boolean; error?: string }> {
   // 1. Holiday / Saturday / Sunday check
   // Match YYYY-MM-DD
   const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -95,12 +95,12 @@ function validateLessonOverlapsAndHolidays(
   }
 
   // 2. Fetch teacher and course info for this assignment
-  const assignmentInfo = db.prepare(`
+  const assignmentInfo = await db.get(`
     SELECT a.teacher_id, u.course_id
     FROM assignments a
     JOIN units u ON a.unit_id = u.id
     WHERE a.id = ?
-  `).get(assignmentId) as any;
+  `, [assignmentId]) as any;
 
   if (!assignmentInfo) {
     return { valid: false, error: 'Assegnazione non trovata!' };
@@ -109,7 +109,7 @@ function validateLessonOverlapsAndHolidays(
   // 3. Overlap check (if times are set)
   if (startTime && endTime) {
     // Check teacher double booking
-    const teacherOverlap = db.prepare(`
+    const teacherOverlap = await db.get(`
       SELECT l.id, c.name as course_name, u.name as unit_name, t.name as teacher_name, l.date, l.start_time, l.end_time
       FROM lessons l
       JOIN assignments a ON l.assignment_id = a.id
@@ -117,7 +117,7 @@ function validateLessonOverlapsAndHolidays(
       JOIN units u ON a.unit_id = u.id
       JOIN courses c ON u.course_id = c.id
       WHERE t.id = ? AND l.date = ? AND l.start_time < ? AND l.end_time > ? ${excludeLessonId ? `AND l.id != ${excludeLessonId}` : ''}
-    `).get(assignmentInfo.teacher_id, dateStr, endTime, startTime) as any;
+    `, [assignmentInfo.teacher_id, dateStr, endTime, startTime]) as any;
 
     if (teacherOverlap) {
       return {
@@ -127,7 +127,7 @@ function validateLessonOverlapsAndHolidays(
     }
 
     // Check course double booking
-    const courseOverlap = db.prepare(`
+    const courseOverlap = await db.get(`
       SELECT l.id, c.name as course_name, u.name as unit_name, t.name as teacher_name, l.date, l.start_time, l.end_time
       FROM lessons l
       JOIN assignments a ON l.assignment_id = a.id
@@ -135,7 +135,7 @@ function validateLessonOverlapsAndHolidays(
       JOIN units u ON a.unit_id = u.id
       JOIN courses c ON u.course_id = c.id
       WHERE c.id = ? AND l.date = ? AND l.start_time < ? AND l.end_time > ? ${excludeLessonId ? `AND l.id != ${excludeLessonId}` : ''}
-    `).get(assignmentInfo.course_id, dateStr, endTime, startTime) as any;
+    `, [assignmentInfo.course_id, dateStr, endTime, startTime]) as any;
 
     if (courseOverlap) {
       return {
@@ -149,7 +149,7 @@ function validateLessonOverlapsAndHolidays(
 }
 
 // GET /api/admin/lessons
-router.get('/', (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
     const { assignment_id, date_from, date_to, course_id } = req.query;
     let query = `
@@ -188,7 +188,7 @@ router.get('/', (req: Request, res: Response) => {
 
     query += ' ORDER BY l.date, l.start_time';
 
-    const lessons = db.prepare(query).all(...params);
+    const lessons = await db.all(query, params);
     res.json(lessons);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -196,12 +196,12 @@ router.get('/', (req: Request, res: Response) => {
 });
 
 // GET /api/admin/lessons/:id - single lesson with full details
-router.get('/:id', (req: Request, res: Response) => {
+router.get('/:id', async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id as string);
     
     // First try to get the lesson to check if it's EXTRA
-    const rawLesson = db.prepare('SELECT * FROM lessons WHERE id = ?').get(id) as any;
+    const rawLesson = await db.get('SELECT * FROM lessons WHERE id = ?', [id]) as any;
     if (!rawLesson) {
       res.status(404).json({ error: 'Lezione non trovata' });
       return;
@@ -209,7 +209,7 @@ router.get('/:id', (req: Request, res: Response) => {
     
     if (rawLesson.location_type === 'EXTRA') {
       // EXTRA lesson: join directly with courses
-      const lesson = db.prepare(`
+      const lesson = await db.get(`
         SELECT l.*, c.name as course_name, c.code as course_code, c.id as course_id,
                c.total_hours_extra,
                NULL as unit_id, NULL as unit_name, NULL as teacher_id, NULL as teacher_name,
@@ -217,11 +217,11 @@ router.get('/:id', (req: Request, res: Response) => {
         FROM lessons l
         JOIN courses c ON l.course_id = c.id
         WHERE l.id = ?
-      `).get(id);
+      `, [id]);
       res.json(lesson);
     } else {
       // Regular lesson: join through assignments
-      const lesson = db.prepare(`
+      const lesson = await db.get(`
         SELECT l.*, a.total_hours as assignment_total_hours,
                a.unit_id, a.teacher_id,
                t.name as teacher_name, u.name as unit_name,
@@ -233,7 +233,7 @@ router.get('/:id', (req: Request, res: Response) => {
         JOIN units u ON a.unit_id = u.id
         JOIN courses c ON u.course_id = c.id
         WHERE l.id = ?
-      `).get(id);
+      `, [id]);
       res.json(lesson);
     }
   } catch (err: any) {
@@ -242,7 +242,7 @@ router.get('/:id', (req: Request, res: Response) => {
 });
 
 // POST /api/admin/lessons
-router.post('/', (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
     const { assignment_id, course_id, date, start_time, end_time, hours, location_type, notes, force, override_reason } = req.body;
 
@@ -282,15 +282,16 @@ router.post('/', (req: Request, res: Response) => {
       }
 
       // Check course has extra hours
-      const course = db.prepare('SELECT * FROM courses WHERE id = ?').get(course_id) as any;
+      const course = await db.get('SELECT * FROM courses WHERE id = ?', [course_id]) as any;
       if (!course) {
         res.status(404).json({ error: 'Corso non trovato' });
         return;
       }
       const totalExtra = course.total_hours_extra || 0;
-      const usedExtra = (db.prepare(
-        `SELECT COALESCE(SUM(hours), 0) as used FROM lessons WHERE course_id = ? AND location_type = 'EXTRA'`
-      ).get(course_id) as any).used;
+      const usedExtra = ((await db.get(
+        `SELECT COALESCE(SUM(hours), 0) as used FROM lessons WHERE course_id = ? AND location_type = 'EXTRA'`,
+        [course_id]
+      )) as any).used;
       const remainingExtra = totalExtra - usedExtra;
 
       if (totalExtra <= 0) {
@@ -305,39 +306,38 @@ router.post('/', (req: Request, res: Response) => {
       // Check course overlap (for EXTRA lessons, check via course_id across ALL lesson types)
       if (start_time && end_time) {
         // Check overlap with regular lessons of the same course
-        const regularOverlap = db.prepare(`
+        const regularOverlap = await db.get(`
           SELECT l.id, c.name as course_name, l.start_time, l.end_time
           FROM lessons l
           JOIN assignments a ON l.assignment_id = a.id
           JOIN units u ON a.unit_id = u.id
           JOIN courses c ON u.course_id = c.id
           WHERE c.id = ? AND l.date = ? AND l.start_time < ? AND l.end_time > ?
-        `).get(course_id, date, end_time, start_time) as any;
+        `, [course_id, date, end_time, start_time]) as any;
         if (regularOverlap) {
           res.status(409).json({ error: `⚠️ Il corso ha già una lezione programmata dalle ${regularOverlap.start_time} alle ${regularOverlap.end_time}!` });
           return;
         }
         // Check overlap with other EXTRA lessons of the same course
-        const extraOverlap = db.prepare(`
+        const extraOverlap = await db.get(`
           SELECT l.id, l.start_time, l.end_time
           FROM lessons l
           WHERE l.course_id = ? AND l.location_type = 'EXTRA' AND l.date = ? AND l.start_time < ? AND l.end_time > ?
-        `).get(course_id, date, end_time, start_time) as any;
+        `, [course_id, date, end_time, start_time]) as any;
         if (extraOverlap) {
           res.status(409).json({ error: `⚠️ Il corso ha già un'altra lezione Ore Extra programmata dalle ${extraOverlap.start_time} alle ${extraOverlap.end_time}!` });
           return;
         }
       }
 
-      const result = db.prepare(
+      const result = await db.run(
         `INSERT INTO lessons (assignment_id, course_id, date, start_time, end_time, hours, location_type, notes, is_override, override_reason, created_by)
-         VALUES (NULL, ?, ?, ?, ?, ?, 'EXTRA', ?, 0, NULL, ?)`
-      ).run(
-        course_id, date, start_time || null, end_time || null, hours, notes, req.user!.id
+         VALUES (NULL, ?, ?, ?, ?, ?, 'EXTRA', ?, 0, NULL, ?)`,
+        [course_id, date, start_time || null, end_time || null, hours, notes, req.user!.id]
       );
 
-      const lesson = db.prepare('SELECT * FROM lessons WHERE id = ?').get(result.lastInsertRowid);
-      audit.create(req, Number(result.lastInsertRowid), lesson);
+      const lesson = await db.get('SELECT * FROM lessons WHERE id = ?', [result.lastInsertRowid]);
+      await audit.create(req, Number(result.lastInsertRowid), lesson);
       res.status(201).json(lesson);
       return;
     }
@@ -349,14 +349,14 @@ router.post('/', (req: Request, res: Response) => {
     }
 
     // Validate overlaps and holidays
-    const overlapValidation = validateLessonOverlapsAndHolidays(assignment_id, date, start_time, end_time);
+    const overlapValidation = await validateLessonOverlapsAndHolidays(assignment_id, date, start_time, end_time);
     if (!overlapValidation.valid) {
       res.status(409).json({ error: overlapValidation.error });
       return;
     }
 
     // Validate hours
-    const validation = validateNewLessonHours(assignment_id, hours);
+    const validation = await validateNewLessonHours(assignment_id, hours);
 
     if (!validation.valid) {
       if (!force) {
@@ -377,16 +377,17 @@ router.post('/', (req: Request, res: Response) => {
 
     const isOverride = !validation.valid && force ? 1 : 0;
 
-    const result = db.prepare(
+    const result = await db.run(
       `INSERT INTO lessons (assignment_id, date, start_time, end_time, hours, location_type, notes, is_override, override_reason, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(
-      assignment_id, date, start_time || null, end_time || null, hours, location_type,
-      notes || null, isOverride, isOverride ? override_reason : null, req.user!.id
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        assignment_id, date, start_time || null, end_time || null, hours, location_type,
+        notes || null, isOverride, isOverride ? override_reason : null, req.user!.id
+      ]
     );
 
-    const lesson = db.prepare('SELECT * FROM lessons WHERE id = ?').get(result.lastInsertRowid);
-    audit.create(req, Number(result.lastInsertRowid), lesson);
+    const lesson = await db.get('SELECT * FROM lessons WHERE id = ?', [result.lastInsertRowid]);
+    await audit.create(req, Number(result.lastInsertRowid), lesson);
 
     res.status(201).json(lesson);
   } catch (err: any) {
@@ -395,10 +396,10 @@ router.post('/', (req: Request, res: Response) => {
 });
 
 // PUT /api/admin/lessons/:id
-router.put('/:id', (req: Request, res: Response) => {
+router.put('/:id', async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id as string);
-    const old = db.prepare('SELECT * FROM lessons WHERE id = ?').get(id) as any;
+    const old = await db.get('SELECT * FROM lessons WHERE id = ?', [id]) as any;
     if (!old) {
       res.status(404).json({ error: 'Lezione non trovata' });
       return;
@@ -442,15 +443,16 @@ router.put('/:id', (req: Request, res: Response) => {
       }
 
       // Validate extra hours
-      const course = db.prepare('SELECT * FROM courses WHERE id = ?').get(effectiveCourseId) as any;
+      const course = await db.get('SELECT * FROM courses WHERE id = ?', [effectiveCourseId]) as any;
       if (!course) {
         res.status(404).json({ error: 'Corso non trovato' });
         return;
       }
       const totalExtra = course.total_hours_extra || 0;
-      const usedExtra = (db.prepare(
-        `SELECT COALESCE(SUM(hours), 0) as used FROM lessons WHERE course_id = ? AND location_type = 'EXTRA' AND id != ?`
-      ).get(effectiveCourseId, id) as any).used;
+      const usedExtra = ((await db.get(
+        `SELECT COALESCE(SUM(hours), 0) as used FROM lessons WHERE course_id = ? AND location_type = 'EXTRA' AND id != ?`,
+        [effectiveCourseId, id]
+      )) as any).used;
       const remainingExtra = totalExtra - usedExtra;
 
       if (newHours > remainingExtra) {
@@ -458,18 +460,19 @@ router.put('/:id', (req: Request, res: Response) => {
         return;
       }
 
-      db.prepare(
+      await db.run(
         `UPDATE lessons SET assignment_id = NULL, course_id = ?, date = ?, start_time = ?, end_time = ?,
          hours = ?, location_type = 'EXTRA', notes = ?,
          updated_at = CURRENT_TIMESTAMP, updated_by = ?
-         WHERE id = ?`
-      ).run(
-        effectiveCourseId, newDate, newStartTime, newEndTime,
-        newHours, newNotes, req.user!.id, id
+         WHERE id = ?`,
+        [
+          effectiveCourseId, newDate, newStartTime, newEndTime,
+          newHours, newNotes, req.user!.id, id
+        ]
       );
 
-      const updated = db.prepare('SELECT * FROM lessons WHERE id = ?').get(id);
-      audit.update(req, id, old, updated);
+      const updated = await db.get('SELECT * FROM lessons WHERE id = ?', [id]);
+      await audit.update(req, id, old, updated);
       res.json(updated);
       return;
     }
@@ -477,13 +480,13 @@ router.put('/:id', (req: Request, res: Response) => {
     // === Regular lesson update (existing logic) ===
     const newAssignmentId = assignment_id || old.assignment_id;
 
-    const overlapValidation = validateLessonOverlapsAndHolidays(newAssignmentId, newDate, newStartTime, newEndTime, id);
+    const overlapValidation = await validateLessonOverlapsAndHolidays(newAssignmentId, newDate, newStartTime, newEndTime, id);
     if (!overlapValidation.valid) {
       res.status(409).json({ error: overlapValidation.error });
       return;
     }
 
-    const validation = validateNewLessonHours(newAssignmentId, newHours, id);
+    const validation = await validateNewLessonHours(newAssignmentId, newHours, id);
 
     if (!validation.valid) {
       if (!force) {
@@ -504,27 +507,28 @@ router.put('/:id', (req: Request, res: Response) => {
 
     const isOverride = !validation.valid && force ? 1 : old.is_override;
 
-    db.prepare(
+    await db.run(
       `UPDATE lessons SET assignment_id = ?, date = ?, start_time = ?, end_time = ?,
        hours = ?, location_type = ?, notes = ?, is_override = ?, override_reason = ?,
        updated_at = CURRENT_TIMESTAMP, updated_by = ?
-       WHERE id = ?`
-    ).run(
-      newAssignmentId,
-      newDate,
-      newStartTime,
-      newEndTime,
-      newHours,
-      location_type || old.location_type,
-      notes !== undefined ? notes : old.notes,
-      isOverride,
-      isOverride ? (override_reason || old.override_reason) : null,
-      req.user!.id,
-      id
+       WHERE id = ?`,
+      [
+        newAssignmentId,
+        newDate,
+        newStartTime,
+        newEndTime,
+        newHours,
+        location_type || old.location_type,
+        notes !== undefined ? notes : old.notes,
+        isOverride,
+        isOverride ? (override_reason || old.override_reason) : null,
+        req.user!.id,
+        id
+      ]
     );
 
-    const updated = db.prepare('SELECT * FROM lessons WHERE id = ?').get(id);
-    audit.update(req, id, old, updated);
+    const updated = await db.get('SELECT * FROM lessons WHERE id = ?', [id]);
+    await audit.update(req, id, old, updated);
 
     res.json(updated);
   } catch (err: any) {
@@ -533,17 +537,17 @@ router.put('/:id', (req: Request, res: Response) => {
 });
 
 // DELETE /api/admin/lessons/:id
-router.delete('/:id', (req: Request, res: Response) => {
+router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id as string);
-    const old = db.prepare('SELECT * FROM lessons WHERE id = ?').get(id) as any;
+    const old = await db.get('SELECT * FROM lessons WHERE id = ?', [id]) as any;
     if (!old) {
       res.status(404).json({ error: 'Lesson not found' });
       return;
     }
 
-    db.prepare('DELETE FROM lessons WHERE id = ?').run(id);
-    audit.delete(req, id, old);
+    await db.run('DELETE FROM lessons WHERE id = ?', [id]);
+    await audit.delete(req, id, old);
 
     res.json({ message: 'Lesson deleted successfully' });
   } catch (err: any) {

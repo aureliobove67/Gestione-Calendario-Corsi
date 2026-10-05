@@ -4,11 +4,11 @@ import db from '../db/connection';
 const router = Router();
 
 // GET /api/public/periods
-router.get('/periods', (_req: Request, res: Response) => {
+router.get('/periods', async (_req: Request, res: Response) => {
   try {
-    const periods = db.prepare(
+    const periods = await db.all(
       'SELECT id, name, description, start_date, end_date, is_active FROM academic_periods WHERE is_active = 1 ORDER BY start_date DESC'
-    ).all();
+    );
     res.json(periods);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -16,7 +16,7 @@ router.get('/periods', (_req: Request, res: Response) => {
 });
 
 // GET /api/public/courses?period_id=
-router.get('/courses', (req: Request, res: Response) => {
+router.get('/courses', async (req: Request, res: Response) => {
   try {
     const { period_id } = req.query;
 
@@ -54,7 +54,7 @@ router.get('/courses', (req: Request, res: Response) => {
     }
     query += ' ORDER BY c.code';
 
-    const courses = db.prepare(query).all(...params);
+    const courses = await db.all(query, params);
     res.json(courses);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -62,7 +62,7 @@ router.get('/courses', (req: Request, res: Response) => {
 });
 
 // GET /api/public/progress?period_id= — Global period progress (only lessons up to today, deadline-aware)
-router.get('/progress', (req: Request, res: Response) => {
+router.get('/progress', async (req: Request, res: Response) => {
   try {
     const { period_id } = req.query;
     if (!period_id) {
@@ -73,7 +73,7 @@ router.get('/progress', (req: Request, res: Response) => {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
     // Get all courses for this period
-    const courses = db.prepare(`
+    const courses = await db.all(`
       SELECT c.id, c.code, c.name,
         COALESCE(c.total_hours_aula, 0) as total_hours_aula,
         COALESCE(c.total_hours_webinar, 0) as total_hours_webinar,
@@ -85,7 +85,7 @@ router.get('/progress', (req: Request, res: Response) => {
       FROM courses c
       WHERE c.period_id = ?
       ORDER BY c.code
-    `).all(period_id as any) as any[];
+    `, [period_id as any]) as any[];
 
     let totalHoursPeriod = 0;
     let scheduledUpToToday = 0;
@@ -106,25 +106,25 @@ router.get('/progress', (req: Request, res: Response) => {
 
       // Scheduled hours UP TO TODAY ONLY (not future)
       // Regular lessons (via assignments)
-      const regularResult = db.prepare(`
+      const regularResult = await db.get(`
         SELECT COALESCE(SUM(l.hours), 0) as total
         FROM lessons l
         JOIN assignments a ON l.assignment_id = a.id
         JOIN units u ON a.unit_id = u.id
         WHERE u.course_id = ? AND l.date <= ? AND l.location_type != 'EXTRA'
-      `).get(course.id, today) as any;
+      `, [course.id, today]) as any;
 
       let courseScheduled = regularResult.total || 0;
 
       // If deadline is expired, exclude non-contract type lessons from scheduled count
       if (!deadlineActive) {
-        const nonContractScheduled = db.prepare(`
+        const nonContractScheduled = await db.get(`
           SELECT COALESCE(SUM(l.hours), 0) as total
           FROM lessons l
           JOIN assignments a ON l.assignment_id = a.id
           JOIN units u ON a.unit_id = u.id
           WHERE u.course_id = ? AND l.date <= ? AND l.location_type IN ('WEBINAR', 'FAD', 'STAGE')
-        `).get(course.id, today) as any;
+        `, [course.id, today]) as any;
         courseScheduled -= (nonContractScheduled.total || 0);
       }
 
@@ -149,16 +149,17 @@ router.get('/progress', (req: Request, res: Response) => {
 });
 
 // GET /api/public/teachers?period_id=
-router.get('/teachers', (req: Request, res: Response) => {
+router.get('/teachers', async (req: Request, res: Response) => {
   try {
     const { period_id } = req.query;
     let teachers;
     if (period_id) {
-      teachers = db.prepare(
-        'SELECT id, name, organization, email FROM teachers WHERE period_id = ? ORDER BY name'
-      ).all(period_id as any);
+      teachers = await db.all(
+        'SELECT id, name, organization, email FROM teachers WHERE period_id = ? ORDER BY name',
+        [period_id as any]
+      );
     } else {
-      teachers = db.prepare('SELECT id, name, organization, email FROM teachers ORDER BY name').all();
+      teachers = await db.all('SELECT id, name, organization, email FROM teachers ORDER BY name');
     }
     res.json(teachers);
   } catch (err: any) {
@@ -167,7 +168,7 @@ router.get('/teachers', (req: Request, res: Response) => {
 });
 
 // GET /api/public/calendar?period_id=&week=YYYY-MM-DD
-router.get('/calendar', (req: Request, res: Response) => {
+router.get('/calendar', async (req: Request, res: Response) => {
   try {
     const { period_id, week } = req.query;
 
@@ -215,7 +216,7 @@ router.get('/calendar', (req: Request, res: Response) => {
     const fullQuery = `${regularQuery} UNION ALL ${extraQuery} ORDER BY date, start_time`;
     const allParams = [...regularParams, ...extraParams];
 
-    const lessons = db.prepare(fullQuery).all(...allParams);
+    const lessons = await db.all(fullQuery, allParams);
     res.json(lessons);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -223,7 +224,7 @@ router.get('/calendar', (req: Request, res: Response) => {
 });
 
 // GET /api/public/calendar/month?period_id=&month=YYYY-MM
-router.get('/calendar/month', (req: Request, res: Response) => {
+router.get('/calendar/month', async (req: Request, res: Response) => {
   try {
     const { period_id, month } = req.query;
 
@@ -272,7 +273,7 @@ router.get('/calendar/month', (req: Request, res: Response) => {
     const fullQuery = `${regularQuery} UNION ALL ${extraQuery} ORDER BY date, start_time`;
     const allParams = [...regularParams, ...extraParams];
 
-    const lessons = db.prepare(fullQuery).all(...allParams);
+    const lessons = await db.all(fullQuery, allParams);
     res.json(lessons);
   } catch (err: any) {
     res.status(500).json({ error: err.message });

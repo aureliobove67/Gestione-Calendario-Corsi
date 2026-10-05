@@ -4,7 +4,7 @@ import db from '../db/connection';
 const router = Router();
 
 // GET /api/admin/audit-log
-router.get('/', (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
     const { entity_type, user_id, from, to, entity_id, limit, offset } = req.query;
 
@@ -44,7 +44,7 @@ router.get('/', (req: Request, res: Response) => {
     query += ` LIMIT ? OFFSET ?`;
     params.push(queryLimit, queryOffset);
 
-    const logs = db.prepare(query).all(...params);
+    const logs = await db.all(query, params);
 
     // Parse JSON fields
     const parsed = logs.map((log: any) => ({

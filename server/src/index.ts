@@ -3,8 +3,8 @@ import path from 'path';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 
-// Import database (this initializes schema + default admin)
-import './db/connection';
+// Import database initializer
+import { initializeDatabase } from './db/connection';
 
 // Import middleware
 import { authMiddleware } from './middleware/auth';
@@ -80,33 +80,44 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`\n🚀 Server running on http://localhost:${PORT}`);
-  console.log(`🌐 Frontend served from: ${clientDistPath}`);
-  console.log(`\n📌 API Routes:`);
-  console.log(`  Public:`);
-  console.log(`    GET  /api/public/periods`);
-  console.log(`    GET  /api/public/courses?period_id=`);
-  console.log(`    GET  /api/public/teachers?period_id=`);
-  console.log(`    GET  /api/public/calendar?period_id=&week=YYYY-MM-DD`);
-  console.log(`    GET  /api/public/calendar/month?period_id=&month=YYYY-MM`);
-  console.log(`  Auth:`);
-  console.log(`    POST /api/auth/login`);
-  console.log(`    POST /api/auth/logout`);
-  console.log(`    GET  /api/auth/me`);
-  console.log(`    PUT  /api/auth/change-password`);
-  console.log(`  Admin (JWT required):`);
-  console.log(`    CRUD /api/admin/users`);
-  console.log(`    CRUD /api/admin/periods`);
-  console.log(`    CRUD /api/admin/courses`);
-  console.log(`    CRUD /api/admin/units`);
-  console.log(`    CRUD /api/admin/teachers`);
-  console.log(`    CRUD /api/admin/assignments`);
-  console.log(`    CRUD /api/admin/lessons`);
-  console.log(`    GET  /api/admin/audit-log`);
-  console.log(`    POST /api/admin/import-excel`);
-  console.log(`\n🔑 Default admin: admin / admin123\n`);
-});
+// Initialize database and start server
+async function start() {
+  try {
+    await initializeDatabase();
+    
+    app.listen(PORT, () => {
+      console.log(`\n🚀 Server running on http://localhost:${PORT}`);
+      console.log(`🌐 Frontend served from: ${clientDistPath}`);
+      console.log(`\n📌 API Routes:`);
+      console.log(`  Public:`);
+      console.log(`    GET  /api/public/periods`);
+      console.log(`    GET  /api/public/courses?period_id=`);
+      console.log(`    GET  /api/public/teachers?period_id=`);
+      console.log(`    GET  /api/public/calendar?period_id=&week=YYYY-MM-DD`);
+      console.log(`    GET  /api/public/calendar/month?period_id=&month=YYYY-MM`);
+      console.log(`  Auth:`);
+      console.log(`    POST /api/auth/login`);
+      console.log(`    POST /api/auth/logout`);
+      console.log(`    GET  /api/auth/me`);
+      console.log(`    PUT  /api/auth/change-password`);
+      console.log(`  Admin (JWT required):`);
+      console.log(`    CRUD /api/admin/users`);
+      console.log(`    CRUD /api/admin/periods`);
+      console.log(`    CRUD /api/admin/courses`);
+      console.log(`    CRUD /api/admin/units`);
+      console.log(`    CRUD /api/admin/teachers`);
+      console.log(`    CRUD /api/admin/assignments`);
+      console.log(`    CRUD /api/admin/lessons`);
+      console.log(`    GET  /api/admin/audit-log`);
+      console.log(`    POST /api/admin/import-excel`);
+      console.log(`\n🔑 Default admin: admin / admin123\n`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+start();
 
 export default app;

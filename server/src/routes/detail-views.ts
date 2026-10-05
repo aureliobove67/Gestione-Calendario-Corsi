@@ -4,12 +4,12 @@ import db from '../db/connection';
 const router = Router();
 
 // GET /api/admin/detail/course/:id — Full course detail with UFs, teachers, and lessons
-router.get('/course/:id', (req: Request, res: Response) => {
+router.get('/course/:id', async (req: Request, res: Response) => {
   try {
     const courseId = parseInt(req.params.id as string);
 
     // Get course info with used hours
-    const course = db.prepare(`
+    const course = await db.get(`
       SELECT c.*,
         COALESCE((SELECT SUM(l.hours) FROM lessons l
           JOIN assignments a ON l.assignment_id = a.id
@@ -21,7 +21,7 @@ router.get('/course/:id', (req: Request, res: Response) => {
           WHERE u.course_id = c.id AND l.location_type = 'PW'), 0) as used_hours_pw
       FROM courses c
       WHERE c.id = ?
-    `).get(courseId) as any;
+    `, [courseId]) as any;
 
     if (!course) {
       res.status(404).json({ error: 'Corso non trovato' });
@@ -29,27 +29,28 @@ router.get('/course/:id', (req: Request, res: Response) => {
     }
 
     // Get all units with assignments and lessons
-    const units = db.prepare(
-      'SELECT * FROM units WHERE course_id = ? ORDER BY name'
-    ).all(courseId) as any[];
+    const units = await db.all(
+      'SELECT * FROM units WHERE course_id = ? ORDER BY name',
+      [courseId]
+    ) as any[];
 
-    const unitsDetail = units.map((unit: any) => {
-      const assignments = db.prepare(`
+    const unitsDetail = await Promise.all(units.map(async (unit: any) => {
+      const assignments = await db.all(`
         SELECT a.id as assignment_id, a.total_hours as assigned_hours, a.teacher_id,
                t.name as teacher_name
         FROM assignments a
         JOIN teachers t ON a.teacher_id = t.id
         WHERE a.unit_id = ?
         ORDER BY t.name
-      `).all(unit.id) as any[];
+      `, [unit.id]) as any[];
 
-      const teachersDetail = assignments.map((a: any) => {
-        const lessons = db.prepare(`
+      const teachersDetail = await Promise.all(assignments.map(async (a: any) => {
+        const lessons = await db.all(`
           SELECT l.id, l.date, l.start_time, l.end_time, l.hours, l.location_type, l.notes
           FROM lessons l
           WHERE l.assignment_id = ?
           ORDER BY l.date, l.start_time
-        `).all(a.assignment_id) as any[];
+        `, [a.assignment_id]) as any[];
 
         const scheduledHours = lessons.reduce((sum: number, l: any) => sum + (l.hours || 0), 0);
 
@@ -62,7 +63,7 @@ router.get('/course/:id', (req: Request, res: Response) => {
           remaining_hours: a.assigned_hours - scheduledHours,
           lessons
         };
-      });
+      }));
 
       return {
         unit_id: unit.id,
@@ -70,7 +71,7 @@ router.get('/course/:id', (req: Request, res: Response) => {
         contracted_hours: unit.contracted_hours || 0,
         teachers: teachersDetail
       };
-    });
+    }));
 
     const totalContracted = (course.total_hours_aula || 0) + (course.total_hours_pw || 0);
     const totalScheduled = (course.used_hours_aula || 0) + (course.used_hours_pw || 0);
@@ -92,12 +93,12 @@ router.get('/course/:id', (req: Request, res: Response) => {
 });
 
 // GET /api/admin/detail/teacher/:id?period_id= — Full teacher detail with courses/UFs/lessons
-router.get('/teacher/:id', (req: Request, res: Response) => {
+router.get('/teacher/:id', async (req: Request, res: Response) => {
   try {
     const teacherId = parseInt(req.params.id as string);
     const { period_id } = req.query;
 
-    const teacher = db.prepare('SELECT * FROM teachers WHERE id = ?').get(teacherId) as any;
+    const teacher = await db.get('SELECT * FROM teachers WHERE id = ?', [teacherId]) as any;
     if (!teacher) {
       res.status(404).json({ error: 'Docente non trovato' });
       return;
@@ -122,7 +123,7 @@ router.get('/teacher/:id', (req: Request, res: Response) => {
 
     assignQuery += ' ORDER BY c.code, u.name';
 
-    const assignments = db.prepare(assignQuery).all(...params) as any[];
+    const assignments = await db.all(assignQuery, params) as any[];
 
     // Group by course
     const courseMap: Record<number, any> = {};
@@ -137,12 +138,12 @@ router.get('/teacher/:id', (req: Request, res: Response) => {
         };
       }
 
-      const lessons = db.prepare(`
+      const lessons = await db.all(`
         SELECT l.id, l.date, l.start_time, l.end_time, l.hours, l.location_type, l.notes
         FROM lessons l
         WHERE l.assignment_id = ?
         ORDER BY l.date, l.start_time
-      `).all(a.assignment_id) as any[];
+      `, [a.assignment_id]) as any[];
 
       const scheduledHours = lessons.reduce((sum: number, l: any) => sum + (l.hours || 0), 0);
 

@@ -7,7 +7,7 @@ const router = Router();
 const audit = withAudit('assignment');
 
 // GET /api/admin/assignments
-router.get('/', (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
     const { unit_id, teacher_id, course_id } = req.query;
     let query = `
@@ -36,7 +36,7 @@ router.get('/', (req: Request, res: Response) => {
 
     query += ' ORDER BY c.code, u.name, t.name';
 
-    const assignments = db.prepare(query).all(...params);
+    const assignments = await db.all(query, params);
     res.json(assignments);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -44,10 +44,10 @@ router.get('/', (req: Request, res: Response) => {
 });
 
 // GET /api/admin/assignments/:id/hours-status
-router.get('/:id/hours-status', (req: Request, res: Response) => {
+router.get('/:id/hours-status', async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id as string);
-    const status = getAssignmentHoursStatus(id);
+    const status = await getAssignmentHoursStatus(id);
     res.json(status);
   } catch (err: any) {
     res.status(404).json({ error: err.message });
@@ -55,7 +55,7 @@ router.get('/:id/hours-status', (req: Request, res: Response) => {
 });
 
 // POST /api/admin/assignments
-router.post('/', (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
     const { unit_id, teacher_id, total_hours, hours, notes } = req.body;
     const finalHours = total_hours !== undefined ? total_hours : hours;
@@ -65,12 +65,13 @@ router.post('/', (req: Request, res: Response) => {
       return;
     }
 
-    const result = db.prepare(
-      'INSERT INTO assignments (unit_id, teacher_id, total_hours, notes, created_by) VALUES (?, ?, ?, ?, ?)'
-    ).run(unit_id, teacher_id, finalHours || 0, notes || null, req.user!.id);
+    const result = await db.run(
+      'INSERT INTO assignments (unit_id, teacher_id, total_hours, notes, created_by) VALUES (?, ?, ?, ?, ?)',
+      [unit_id, teacher_id, finalHours || 0, notes || null, req.user!.id]
+    );
 
-    const assignment = db.prepare('SELECT id, unit_id, teacher_id, total_hours as hours, notes FROM assignments WHERE id = ?').get(result.lastInsertRowid);
-    audit.create(req, Number(result.lastInsertRowid), assignment);
+    const assignment = await db.get('SELECT id, unit_id, teacher_id, total_hours as hours, notes FROM assignments WHERE id = ?', [result.lastInsertRowid]);
+    await audit.create(req, Number(result.lastInsertRowid), assignment);
 
     res.status(201).json(assignment);
   } catch (err: any) {
@@ -79,10 +80,10 @@ router.post('/', (req: Request, res: Response) => {
 });
 
 // PUT /api/admin/assignments/:id
-router.put('/:id', (req: Request, res: Response) => {
+router.put('/:id', async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id as string);
-    const old = db.prepare('SELECT * FROM assignments WHERE id = ?').get(id) as any;
+    const old = await db.get('SELECT * FROM assignments WHERE id = ?', [id]) as any;
     if (!old) {
       res.status(404).json({ error: 'Assignment not found' });
       return;
@@ -91,18 +92,19 @@ router.put('/:id', (req: Request, res: Response) => {
     const { unit_id, teacher_id, total_hours, hours, notes } = req.body;
     const finalHours = total_hours !== undefined ? total_hours : hours;
 
-    db.prepare(
-      'UPDATE assignments SET unit_id = ?, teacher_id = ?, total_hours = ?, notes = ? WHERE id = ?'
-    ).run(
-      unit_id || old.unit_id,
-      teacher_id || old.teacher_id,
-      finalHours !== undefined ? finalHours : old.total_hours,
-      notes !== undefined ? notes : old.notes,
-      id
+    await db.run(
+      'UPDATE assignments SET unit_id = ?, teacher_id = ?, total_hours = ?, notes = ? WHERE id = ?',
+      [
+        unit_id || old.unit_id,
+        teacher_id || old.teacher_id,
+        finalHours !== undefined ? finalHours : old.total_hours,
+        notes !== undefined ? notes : old.notes,
+        id
+      ]
     );
 
-    const updated = db.prepare('SELECT id, unit_id, teacher_id, total_hours as hours, notes FROM assignments WHERE id = ?').get(id);
-    audit.update(req, id, old, updated);
+    const updated = await db.get('SELECT id, unit_id, teacher_id, total_hours as hours, notes FROM assignments WHERE id = ?', [id]);
+    await audit.update(req, id, old, updated);
 
     res.json(updated);
   } catch (err: any) {
@@ -111,17 +113,17 @@ router.put('/:id', (req: Request, res: Response) => {
 });
 
 // DELETE /api/admin/assignments/:id
-router.delete('/:id', (req: Request, res: Response) => {
+router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id as string);
-    const old = db.prepare('SELECT * FROM assignments WHERE id = ?').get(id) as any;
+    const old = await db.get('SELECT * FROM assignments WHERE id = ?', [id]) as any;
     if (!old) {
       res.status(404).json({ error: 'Assignment not found' });
       return;
     }
 
-    db.prepare('DELETE FROM assignments WHERE id = ?').run(id);
-    audit.delete(req, id, old);
+    await db.run('DELETE FROM assignments WHERE id = ?', [id]);
+    await audit.delete(req, id, old);
 
     res.json({ message: 'Assignment deleted successfully' });
   } catch (err: any) {

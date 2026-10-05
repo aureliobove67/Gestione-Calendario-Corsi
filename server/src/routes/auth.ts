@@ -7,7 +7,7 @@ import { JWT_SECRET, COOKIE_NAME, authMiddleware } from '../middleware/auth';
 const router = Router();
 
 // POST /api/auth/login
-router.post('/login', (req: Request, res: Response) => {
+router.post('/login', async (req: Request, res: Response) => {
   try {
     const { username, password } = req.body;
 
@@ -16,7 +16,7 @@ router.post('/login', (req: Request, res: Response) => {
       return;
     }
 
-    const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username) as any;
+    const user = await db.get('SELECT * FROM users WHERE username = ?', [username]) as any;
     if (!user) {
       res.status(401).json({ error: 'Invalid credentials' });
       return;
@@ -61,9 +61,9 @@ router.post('/logout', (_req: Request, res: Response) => {
 });
 
 // GET /api/auth/me
-router.get('/me', authMiddleware, (req: Request, res: Response) => {
+router.get('/me', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const user = db.prepare('SELECT id, username, display_name, role FROM users WHERE id = ?').get(req.user!.id) as any;
+    const user = await db.get('SELECT id, username, display_name, role FROM users WHERE id = ?', [req.user!.id]) as any;
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;
@@ -75,7 +75,7 @@ router.get('/me', authMiddleware, (req: Request, res: Response) => {
 });
 
 // PUT /api/auth/change-password
-router.put('/change-password', authMiddleware, (req: Request, res: Response) => {
+router.put('/change-password', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
@@ -89,7 +89,7 @@ router.put('/change-password', authMiddleware, (req: Request, res: Response) => 
       return;
     }
 
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user!.id) as any;
+    const user = await db.get('SELECT * FROM users WHERE id = ?', [req.user!.id]) as any;
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;
@@ -102,7 +102,7 @@ router.put('/change-password', authMiddleware, (req: Request, res: Response) => 
     }
 
     const hash = bcrypt.hashSync(newPassword, 10);
-    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, req.user!.id);
+    await db.run('UPDATE users SET password_hash = ? WHERE id = ?', [hash, req.user!.id]);
 
     res.json({ message: 'Password changed successfully' });
   } catch (err: any) {

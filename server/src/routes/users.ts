@@ -7,9 +7,9 @@ const router = Router();
 const audit = withAudit('user');
 
 // GET /api/admin/users
-router.get('/', (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
-    const users = db.prepare('SELECT id, username, display_name, role, created_at FROM users ORDER BY id').all();
+    const users = await db.all('SELECT id, username, display_name, role, created_at FROM users ORDER BY id');
     res.json(users);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -17,7 +17,7 @@ router.get('/', (req: Request, res: Response) => {
 });
 
 // POST /api/admin/users
-router.post('/', (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
     const { username, password, display_name } = req.body;
 
@@ -26,19 +26,20 @@ router.post('/', (req: Request, res: Response) => {
       return;
     }
 
-    const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+    const existing = await db.get('SELECT id FROM users WHERE username = ?', [username]);
     if (existing) {
       res.status(409).json({ error: 'Username already exists' });
       return;
     }
 
     const hash = bcrypt.hashSync(password, 10);
-    const result = db.prepare(
-      'INSERT INTO users (username, password_hash, display_name, role, created_by) VALUES (?, ?, ?, ?, ?)'
-    ).run(username, hash, display_name || username, 'admin', req.user!.id);
+    const result = await db.run(
+      'INSERT INTO users (username, password_hash, display_name, role, created_by) VALUES (?, ?, ?, ?, ?)',
+      [username, hash, display_name || username, 'admin', req.user!.id]
+    );
 
     const newUser = { id: result.lastInsertRowid, username, display_name: display_name || username, role: 'admin' };
-    audit.create(req, Number(result.lastInsertRowid), newUser);
+    await audit.create(req, Number(result.lastInsertRowid), newUser);
 
     res.status(201).json(newUser);
   } catch (err: any) {
@@ -47,7 +48,7 @@ router.post('/', (req: Request, res: Response) => {
 });
 
 // DELETE /api/admin/users/:id
-router.delete('/:id', (req: Request, res: Response) => {
+router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id as string);
 
@@ -56,14 +57,14 @@ router.delete('/:id', (req: Request, res: Response) => {
       return;
     }
 
-    const user = db.prepare('SELECT id, username, display_name, role FROM users WHERE id = ?').get(id) as any;
+    const user = await db.get('SELECT id, username, display_name, role FROM users WHERE id = ?', [id]) as any;
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;
     }
 
-    db.prepare('DELETE FROM users WHERE id = ?').run(id);
-    audit.delete(req, id, user);
+    await db.run('DELETE FROM users WHERE id = ?', [id]);
+    await audit.delete(req, id, user);
 
     res.json({ message: 'User deleted successfully' });
   } catch (err: any) {
