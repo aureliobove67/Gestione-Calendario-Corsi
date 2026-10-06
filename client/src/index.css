@@ -1604,3 +1604,735 @@ tbody tr:nth-child(even):hover td {
 .mb-lg { margin-bottom: var(--space-lg); }
 .p-md { padding: var(--space-md); }
 .p-lg { padding: var(--space-lg); }
+
+
+/* ============================================================
+   RESPONSIVE & MOBILE ENHANCEMENTS (SMARTPHONE, TABLET, IPHONE)
+   ============================================================ */
+
+/* ---- Public Navbar ---- */
+.public-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+}
+
+.public-navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 24px;
+  background: rgba(18, 20, 29, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-logo {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+  color: #fff;
+  font-weight: 800;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+  flex-shrink: 0;
+}
+
+.brand-title {
+  display: flex;
+  flex-direction: column;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.brand-title span {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-text-responsive {
+  display: inline;
+}
+
+/* ---- Public Container & Cards ---- */
+.public-container {
+  flex: 1;
+  padding: var(--space-lg) var(--space-xl);
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.public-banner-card {
+  margin-bottom: var(--space-lg);
+  padding: 20px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  justify-content: space-between;
+  align-items: center;
+}
+
+.public-banner-text {
+  flex: 1;
+  min-width: 260px;
+}
+
+.public-banner-heading {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.public-banner-desc {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.public-period-selector-wrapper {
+  flex-shrink: 0;
+}
+
+.public-period-select {
+  min-width: 220px;
+  font-weight: 600;
+}
+
+/* ---- Toolbar & Filters ---- */
+.public-toolbar-card {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
+}
+
+.public-toolbar-inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.public-filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  flex: 1;
+  min-width: 280px;
+}
+
+.public-filter-group {
+  margin: 0 !important;
+  flex: 1;
+  min-width: 200px;
+}
+
+.public-nav-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.public-nav-date-label {
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  min-width: 180px;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.public-calendar-wrapper {
+  padding: var(--space-md);
+}
+
+.public-footer {
+  text-align: center;
+  padding: var(--space-lg) var(--space-md);
+  color: var(--text-tertiary);
+  font-size: var(--font-size-xs);
+  border-top: 1px solid var(--border-subtle);
+  margin-top: var(--space-xl);
+}
+
+/* ---- Month View: Desktop vs Mobile Elements ---- */
+.calendar-month-wrapper {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.mobile-view-toolbar {
+  display: none; /* Hidden on desktop */
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.mobile-view-toggle {
+  display: inline-flex;
+  gap: 6px;
+  background: var(--bg-tertiary);
+  padding: 3px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.mobile-scroll-hint {
+  font-size: 11px;
+  color: var(--accent-blue);
+  font-weight: 600;
+  animation: pulse 2s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; transform: translateX(0); }
+  50% { opacity: 1; transform: translateX(3px); }
+}
+
+.calendar-month-scroll-container {
+  width: 100%;
+  overflow-x: visible;
+}
+
+.calendar-month-scroll-container.force-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.calendar-month-scroll-container.force-scroll .calendar-month {
+  min-width: 680px;
+}
+
+.month-day-cell-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.month-holiday-badge {
+  font-size: 8px;
+  color: var(--accent-red);
+  font-weight: bold;
+  padding: 1px 4px;
+  background: var(--accent-red-dim);
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 75%;
+}
+
+.desktop-lessons-container {
+  display: block;
+}
+
+.more-lessons-indicator {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  padding: 2px 6px;
+  font-weight: 600;
+}
+
+.mobile-lesson-dots {
+  display: none; /* Hidden on desktop */
+}
+
+/* Mobile Agenda Section */
+.mobile-agenda-section {
+  display: none; /* Hidden on desktop */
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Week View Mobile Helpers */
+.calendar-week-wrapper {
+  width: 100%;
+}
+
+.week-scroll-hint {
+  display: none; /* Hidden on desktop */
+  margin-bottom: 8px;
+  text-align: right;
+}
+
+.calendar-week-scroll-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ============================================================
+   RESPONSIVE MEDIA QUERIES
+   ============================================================ */
+
+/* ---- Tablet & Mobile Landscape (< 992px) ---- */
+@media (max-width: 992px) {
+  .public-container {
+    padding: var(--space-md) var(--space-lg);
+  }
+}
+
+/* ---- Tablet Portrait & Smartphones (< 768px) ---- */
+@media (max-width: 768px) {
+  /* Prevent iOS zoom on input/select focus */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  .public-container {
+    padding: var(--space-sm) var(--space-sm);
+  }
+
+  .public-navbar {
+    padding: 10px 14px;
+  }
+
+  .brand-logo {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+
+  .brand-title {
+    font-size: 14px;
+  }
+
+  .brand-title span {
+    font-size: 9.5px;
+  }
+
+  .public-banner-card {
+    padding: 14px 16px;
+    flex-direction: column;
+    align-items: stretch;
+    margin-bottom: 12px;
+  }
+
+  .public-banner-heading {
+    font-size: var(--font-size-lg);
+  }
+
+  .public-period-select {
+    width: 100% !important;
+    min-width: unset;
+  }
+
+  .public-toolbar-card {
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+
+  .public-toolbar-inner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .public-filters-row {
+    flex-direction: column;
+    width: 100%;
+    min-width: unset;
+  }
+
+  .public-filter-group {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .public-nav-row {
+    flex-direction: column;
+    width: 100%;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .public-nav-row .public-arrows-group {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .public-nav-row .public-arrows-group .btn {
+    flex: 1;
+    padding: 8px 12px;
+  }
+
+  .public-nav-date-label {
+    text-align: center;
+    font-size: 15px;
+    padding: 4px 0;
+  }
+
+  .public-viewtype-group {
+    width: 100%;
+    display: flex;
+  }
+
+  .public-viewtype-group .btn {
+    flex: 1;
+    padding: 8px 12px;
+  }
+
+  .public-calendar-wrapper {
+    padding: 10px 8px;
+    border-radius: var(--radius-md);
+  }
+
+  /* ---- MONTH VIEW ON MOBILE (< 768px) ---- */
+  .mobile-view-toolbar {
+    display: flex;
+  }
+
+  /* When in mobile compact mode: */
+  .calendar-month.mobile-compact {
+    border-radius: var(--radius-md);
+  }
+
+  .calendar-month.mobile-compact .calendar-month-header-cell {
+    padding: 8px 2px;
+    font-size: 11px;
+    letter-spacing: 0;
+  }
+
+  .calendar-month.mobile-compact .calendar-month-day {
+    min-height: 52px;
+    padding: 4px 2px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    border-radius: 4px;
+    transition: all var(--transition-fast);
+  }
+
+  .calendar-month.mobile-compact .month-day-cell-header {
+    justify-content: center;
+    margin-bottom: 2px;
+  }
+
+  .calendar-month.mobile-compact .day-number {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .calendar-month.mobile-compact .month-holiday-badge {
+    display: none; /* Hide lengthy text on small grid cell */
+  }
+
+  /* Hide bulky desktop lesson pills in mobile compact mode */
+  .calendar-month.mobile-compact .desktop-lessons-container {
+    display: none;
+  }
+
+  /* Show elegant lesson dots */
+  .calendar-month.mobile-compact .mobile-lesson-dots {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    width: 100%;
+    margin-top: auto;
+    padding-bottom: 2px;
+  }
+
+  .dots-row {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .lesson-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+
+  .mobile-lesson-count {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    line-height: 1;
+  }
+
+  /* Highlight day with lessons */
+  .calendar-month.mobile-compact .calendar-month-day.has-lessons {
+    background: rgba(99, 102, 241, 0.04);
+  }
+
+  /* Selected day on mobile */
+  .calendar-month.mobile-compact .calendar-month-day.selected-day {
+    background: rgba(99, 102, 241, 0.22) !important;
+    outline: 2px solid var(--accent-blue);
+    outline-offset: -2px;
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.35);
+  }
+
+  .calendar-month.mobile-compact .calendar-month-day.selected-day .day-number {
+    color: #fff !important;
+    font-weight: 800;
+  }
+
+  /* ---- Mobile Agenda Below Month ---- */
+  .mobile-agenda-section {
+    display: block;
+  }
+
+  .mobile-agenda-header {
+    margin-bottom: 14px;
+  }
+
+  .mobile-agenda-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .mobile-agenda-title .calendar-icon {
+    font-size: 26px;
+  }
+
+  .mobile-agenda-title h4 {
+    font-size: 16px;
+    color: var(--text-primary);
+    font-weight: 700;
+  }
+
+  .mobile-agenda-subtitle {
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: block;
+    margin-top: 2px;
+  }
+
+  .mobile-agenda-empty {
+    padding: 24px 16px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: var(--radius-md);
+    border: 1px dashed var(--border-subtle);
+  }
+
+  .mobile-agenda-empty p {
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin: 0 0 4px 0;
+  }
+
+  .mobile-agenda-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .mobile-lesson-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 14px;
+    gap: 14px;
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+    background: rgba(25, 28, 40, 0.7);
+    transition: transform var(--transition-fast), background var(--transition-fast);
+  }
+
+  .mobile-lesson-item:active {
+    transform: scale(0.98);
+    background: var(--bg-glass-hover);
+  }
+
+  .mobile-lesson-time-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 55px;
+    border-right: 1px solid var(--border-subtle);
+    padding-right: 12px;
+  }
+
+  .mobile-lesson-time {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .mobile-lesson-time-end {
+    font-size: 11px;
+    color: var(--text-tertiary);
+  }
+
+  .mobile-lesson-hours {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent-blue);
+    background: var(--accent-blue-dim);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-top: 4px;
+  }
+
+  .mobile-lesson-details {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .mobile-lesson-course {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 3px;
+  }
+
+  .course-code-badge {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  .course-name-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mobile-lesson-unit {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mobile-lesson-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .mobile-lesson-teacher {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .mobile-lesson-note {
+    font-size: 11px;
+    color: var(--accent-yellow);
+    margin-top: 4px;
+    background: rgba(234, 179, 8, 0.08);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .mobile-lesson-arrow {
+    color: var(--text-tertiary);
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+
+  /* ---- WEEK VIEW ON MOBILE (< 768px) ---- */
+  .week-scroll-hint {
+    display: block;
+  }
+
+  .calendar-week {
+    min-width: 650px !important;
+    grid-template-columns: 46px repeat(7, 1fr) !important;
+  }
+
+  .calendar-time-label {
+    font-size: 11px;
+    padding: 4px 4px;
+    height: 55px;
+  }
+
+  .calendar-time-slot {
+    height: 55px;
+  }
+}
+
+/* ---- Small Smartphones (iPhone SE, etc. < 480px) ---- */
+@media (max-width: 480px) {
+  .btn-text-responsive {
+    display: none; /* Icon only on super small phones */
+  }
+
+  .public-container {
+    padding: 4px 4px;
+  }
+
+  .public-calendar-wrapper {
+    padding: 8px 4px;
+  }
+
+  .calendar-month.mobile-compact .day-number {
+    font-size: 12px;
+  }
+
+  .lesson-dot {
+    width: 5px;
+    height: 5px;
+  }
+
+  .mobile-lesson-item {
+    padding: 10px 10px;
+    gap: 10px;
+  }
+
+  .mobile-lesson-time-column {
+    min-width: 48px;
+    padding-right: 8px;
+  }
+
+  .mobile-lesson-time {
+    font-size: 13.5px;
+  }
+}

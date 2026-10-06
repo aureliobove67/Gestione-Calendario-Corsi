@@ -42,18 +42,18 @@ export default function PublicCalendar() {
     publicApi.getPeriods()
       .then((data) => {
         setPeriods(data);
-        
+
         // Retrieve persistent selection
         const savedPeriodId = localStorage.getItem('selectedPeriodId');
         if (savedPeriodId) {
           const parsed = Number(savedPeriodId);
-          if (data.some(p => p.id === parsed)) {
+          if (data.some((p) => p.id === parsed)) {
             setSelectedPeriodId(parsed);
             return;
           }
         }
-        
-        const active = data.find(p => p.is_active);
+
+        const active = data.find((p) => p.is_active);
         if (active) {
           setSelectedPeriodId(active.id);
           localStorage.setItem('selectedPeriodId', String(active.id));
@@ -72,7 +72,7 @@ export default function PublicCalendar() {
     setLoading(true);
     Promise.all([
       publicApi.getCourses(selectedPeriodId),
-      publicApi.getTeachers(selectedPeriodId)
+      publicApi.getTeachers(selectedPeriodId),
     ])
       .then(([coursesData, teachersData]) => {
         setCourses(coursesData);
@@ -83,7 +83,7 @@ export default function PublicCalendar() {
   }, [selectedPeriodId]);
 
   const selectedPeriod = useMemo(() => {
-    return periods.find(p => p.id === selectedPeriodId);
+    return periods.find((p) => p.id === selectedPeriodId);
   }, [periods, selectedPeriodId]);
 
   // Adjust currentDate if it falls outside the selected period's date range
@@ -131,16 +131,14 @@ export default function PublicCalendar() {
   // Apply client-side filters for interactive search
   const filteredLessons = useMemo(() => {
     return lessons.filter((lesson) => {
-      // Find matching unit/course
       if (selectedCourseId) {
-        // In client lessons, we have course_name or course_code, or check from course list
-        const course = courses.find(c => c.id.toString() === selectedCourseId);
+        const course = courses.find((c) => c.id.toString() === selectedCourseId);
         if (!course || (lesson.course_code !== course.code)) {
           return false;
         }
       }
       if (selectedTeacherId) {
-        const teacher = teachers.find(t => t.id.toString() === selectedTeacherId);
+        const teacher = teachers.find((t) => t.id.toString() === selectedTeacherId);
         if (!teacher || lesson.teacher_name !== teacher.name) {
           return false;
         }
@@ -224,14 +222,14 @@ export default function PublicCalendar() {
       const start = getWeekStart(currentDate);
       const end = new Date(start);
       end.setDate(end.getDate() + 6);
-      return `Settimana: ${start.getDate()} ${start.toLocaleString('it-IT', { month: 'short' })} - ${end.getDate()} ${end.toLocaleString('it-IT', { month: 'short' })} ${end.getFullYear()}`;
+      return `${start.getDate()} ${start.toLocaleString('it-IT', { month: 'short' })} - ${end.getDate()} ${end.toLocaleString('it-IT', { month: 'short' })} ${end.getFullYear()}`;
     } else {
       return currentDate.toLocaleString('it-IT', { month: 'long', year: 'numeric' }).toUpperCase();
     }
   };
 
   return (
-    <div className="public-layout" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="public-layout">
       {/* Navbar */}
       <nav className="public-navbar">
         <div className="navbar-brand">
@@ -244,35 +242,34 @@ export default function PublicCalendar() {
 
         <div className="navbar-actions">
           {isAuthenticated ? (
-            <button className="btn btn-primary" onClick={() => navigate('/admin')} id="btn-goto-admin">
-              📊 Vai al Pannello Admin
+            <button className="btn btn-primary btn-sm" onClick={() => navigate('/admin')} id="btn-goto-admin">
+              📊 <span className="btn-text-responsive">Pannello Admin</span>
             </button>
           ) : (
-            <button className="btn btn-secondary" onClick={() => navigate('/login')} id="btn-login-redirect">
-              🔑 Accedi
+            <button className="btn btn-secondary btn-sm" onClick={() => navigate('/login')} id="btn-login-redirect">
+              🔑 <span className="btn-text-responsive">Accedi</span>
             </button>
           )}
         </div>
       </nav>
 
       {/* Main Container */}
-      <main className="public-container" style={{ flex: 1, padding: 'var(--space-lg) var(--space-xl)' }}>
+      <main className="public-container">
         {/* Banner info */}
-        <div className="glass-card" style={{ marginBottom: 'var(--space-xl)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-md)', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
+        <div className="glass-card public-banner-card">
+          <div className="public-banner-text">
+            <h2 className="public-banner-heading">
               📅 Calendario Lezioni & Corsi
             </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-sm)' }}>
+            <p className="public-banner-desc">
               Visualizzazione orari, docenti e aule. Filtra per corso o docente per restringere la ricerca.
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
-            <div className="input-group" style={{ margin: 0, width: 'auto' }}>
+          <div className="public-period-selector-wrapper">
+            <div className="input-group" style={{ margin: 0, width: '100%' }}>
               <select
-                className="input"
-                style={{ width: 'auto', minWidth: 200 }}
+                className="input public-period-select"
                 value={selectedPeriodId || ''}
                 onChange={(e) => {
                   const val = Number(e.target.value);
@@ -298,34 +295,33 @@ export default function PublicCalendar() {
         )}
 
         {/* Toolbar & Filters */}
-        <div className="glass-card" style={{ marginBottom: 'var(--space-lg)', padding: 'var(--space-md)' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-md)', alignItems: 'center', justifyContent: 'space-between' }}>
-            
+        <div className="glass-card public-toolbar-card">
+          <div className="public-toolbar-inner">
             {/* Filters */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-md)', flex: 1 }}>
-              <div className="input-group" style={{ margin: 0, minWidth: 250, flex: 1 }}>
+            <div className="public-filters-row">
+              <div className="input-group public-filter-group">
                 <select
                   className="input"
                   value={selectedCourseId}
                   onChange={(e) => setSelectedCourseId(e.target.value)}
                   id="public-course-filter"
                 >
-                  <option value="">Tutti i Corsi</option>
-                  {courses.map(c => (
+                  <option value="">📚 Tutti i Corsi</option>
+                  {courses.map((c) => (
                     <option key={c.id} value={c.id}>{c.code} - {c.name}</option>
                   ))}
                 </select>
               </div>
 
-              <div className="input-group" style={{ margin: 0, minWidth: 250, flex: 1 }}>
+              <div className="input-group public-filter-group">
                 <select
                   className="input"
                   value={selectedTeacherId}
                   onChange={(e) => setSelectedTeacherId(e.target.value)}
                   id="public-teacher-filter"
                 >
-                  <option value="">Tutti i Docenti</option>
-                  {teachers.map(t => (
+                  <option value="">👨‍🏫 Tutti i Docenti</option>
+                  {teachers.map((t) => (
                     <option key={t.id} value={t.id}>{t.name}</option>
                   ))}
                 </select>
@@ -334,18 +330,18 @@ export default function PublicCalendar() {
 
             {/* View navigation & View Toggle */}
             {!selectedCourseId && !selectedTeacherId && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-md)', alignItems: 'center' }}>
-                <div className="btn-group">
-                  <button className="btn btn-secondary btn-sm" onClick={handlePrev} disabled={isPrevDisabled} id="btn-public-prev">◀</button>
+              <div className="public-nav-row">
+                <div className="btn-group public-arrows-group">
+                  <button className="btn btn-secondary btn-sm" onClick={handlePrev} disabled={isPrevDisabled} id="btn-public-prev" title="Precedente">◀</button>
                   <button className="btn btn-secondary btn-sm" onClick={handleToday} id="btn-public-today">Oggi</button>
-                  <button className="btn btn-secondary btn-sm" onClick={handleNext} disabled={isNextDisabled} id="btn-public-next">▶</button>
+                  <button className="btn btn-secondary btn-sm" onClick={handleNext} disabled={isNextDisabled} id="btn-public-next" title="Successivo">▶</button>
                 </div>
 
-                <span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', minWidth: 180, textAlign: 'center' }}>
+                <span className="public-nav-date-label">
                   {getNavigationLabel()}
                 </span>
 
-                <div className="btn-group">
+                <div className="btn-group public-viewtype-group">
                   <button
                     className={`btn btn-sm ${viewType === 'week' ? 'btn-primary' : 'btn-secondary'}`}
                     onClick={() => setViewType('week')}
@@ -363,19 +359,18 @@ export default function PublicCalendar() {
                 </div>
               </div>
             )}
-
           </div>
         </div>
 
         {/* Calendar View Container */}
         {!selectedCourseId && !selectedTeacherId && (
           loading ? (
-            <div className="loading-container" style={{ minHeight: 400 }}>
+            <div className="loading-container" style={{ minHeight: 350 }}>
               <div className="spinner spinner-lg" />
               <p>Caricamento calendario in corso...</p>
             </div>
           ) : (
-            <div className="glass-card" style={{ padding: 'var(--space-md)', overflowX: 'auto' }}>
+            <div className="glass-card public-calendar-wrapper">
               {viewType === 'week' ? (
                 <WeekView
                   lessons={filteredLessons}
@@ -407,7 +402,7 @@ export default function PublicCalendar() {
       {/* Lesson details modal */}
       {selectedLesson && (
         <div className="modal-overlay" onClick={() => setSelectedLesson(null)} id="public-lesson-details-overlay">
-          <div className="modal-content" style={{ maxWidth: 500 }} onClick={e => e.stopPropagation()}>
+          <div className="modal-content" style={{ maxWidth: 500 }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>📖 Dettagli Lezione</h3>
               <button className="modal-close-btn" onClick={() => setSelectedLesson(null)}>✕</button>
@@ -472,7 +467,7 @@ export default function PublicCalendar() {
       )}
 
       {/* Footer */}
-      <footer style={{ textAlign: 'center', padding: 'var(--space-md)', color: 'var(--text-tertiary)', fontSize: 'var(--font-size-xs)', borderTop: '1px solid var(--border-subtle)' }}>
+      <footer className="public-footer">
         © {new Date().getFullYear()} Gestione Calendario Corsi — Riservato agli utenti autorizzati.
       </footer>
     </div>
